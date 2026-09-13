@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dtix-sic"
+version = "0.2.0"
+description = "Functional DTIX-A Semantic Information Contract validation library"
+requires-python = ">=3.9"
+dependencies = ["rdflib>=7.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
