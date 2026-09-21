@@ -46,3 +46,44 @@ print(result["errors"])
 ```bash
 pytest
 ```
+
+## v0.3.0: JSON Logic contracts
+
+The validator no longer contains the seven DTIX-A rules in Python. They are stored in:
+
+`src/dtix_sic/contracts/dtix_a_reference.json`
+
+The contract uses JSON Logic expressions, for example:
+
+```json
+{
+  "id": "confidence_minimum",
+  "message": "confidence must be at least 0.80.",
+  "rule": {
+    ">=": [
+      {"var": "confidence"},
+      0.8
+    ]
+  }
+}
+```
+
+Use the bundled contract automatically:
+
+```python
+from dtix_sic import parse_jsonld, validate_sic
+
+graph = parse_jsonld(payload)
+assert validate_sic(graph)
+```
+
+Or load a different JSON contract:
+
+```python
+from dtix_sic import load_contract, validate_sic
+
+contract = load_contract("contracts/my_contract.json")
+result = validate_sic(graph, contract, collect_errors=True)
+```
+
+No Python `eval()` is used. The library contains a small deterministic JSON Logic evaluator and currently supports `var`, `if`, `and`, `or`, `!`, `!!`, comparisons, `in`, `cat`, arithmetic, `min`, `max`, `substr`, `match`, and `merge`.

@@ -1,8 +1,10 @@
-"""Functional DTIX-A Semantic Information Contract validation."""
+"""Functional DTIX-A Semantic Information Contract validation using JSON Logic."""
 
-from rdflib import RDF
+from rdflib import Literal, RDF
 
 from .context import EX
+from .contract import load_contract
+from .logic import evaluate
 
 
 def get_payload_subject(graph):
@@ -15,81 +17,79 @@ def get_first_value(graph, subject, predicate):
     return next(graph.objects(subject, predicate), None)
 
 
-def validate_sic(graph, extra_rules=0, collect_errors=False):
+def graph_to_data(graph, subject):
+    """Convert the selected RDF subject into JSON-compatible rule input."""
+    data = {}
+    for predicate, value in graph.predicate_objects(subject):
+        key = _predicate_name(predicate)
+        if key == "type" or not isinstance(value, Literal):
+            continue
+        converted = _rdf_value_to_python(value)
+        if key not in data:
+            data[key] = converted
+        elif isinstance(data[key], list):
+            data[key].append(converted)
+        else:
+            data[key] = [data[key], converted]
+    return data
+
+
+def validate_sic(graph, contract=None, collect_errors=False):
+    """Evaluate all JSON Logic rules from a contract against an RDF payload.
+
+    ``contract`` may be a loaded contract dictionary or a path to a JSON file.
+    When omitted, the project's bundled DTIX-A reference contract is used.
+
+    Returns bool by default. With ``collect_errors=True`` it returns a plain
+    dictionary containing ``valid`` and a tuple of rule error messages.
     """
-    Validate the DTIX-A reference SIC.
+    if contract is None or isinstance(contract, (str, bytes)):
+        contract = load_contract(contract)
 
-    Returns bool by default.
-
-    With collect_errors=True, returns:
-        {"valid": bool, "errors": tuple[str, ...]}
-
-    No user-defined classes or dataclasses are used.
-    """
-    if extra_rules < 0:
-        raise ValueError("extra_rules must be >= 0")
-
-    errors = []
     subject = get_payload_subject(graph)
-
     if subject is None:
-        errors.append("No dtix:Payload subject exists.")
-        return _result(False, errors, collect_errors)
+        errors = ("No dtix:Payload subject exists.",)
+        return {"valid": False, "errors": errors} if collect_errors else False
 
-    checks = (
-        ("asset_id must exist.", bool(get_first_value(graph, subject, EX.asset_id))),
-        ('information_type must be "computed".',
-         _string_equals(graph, subject, EX.information_type, "computed")),
-        ("rul_hours must be greater than zero.",
-         _numeric_check(graph, subject, EX.rul_hours, lambda value: value > 0)),
-        ("confidence must be at least 0.80.",
-         _numeric_check(graph, subject, EX.confidence, lambda value: value >= 0.80)),
-        ("model_id must exist.", bool(get_first_value(graph, subject, EX.model_id))),
-        ("model_version must exist.",
-         bool(get_first_value(graph, subject, EX.model_version))),
-        ("latency_ms must not exceed 50.",
-         _numeric_check(graph, subject, EX.latency_ms, lambda value: value <= 50)),
-    )
+    data = graph_to_data(graph, subject)
+    errors = []
 
-    for message, passed in checks:
-        if not passed:
-            errors.append(message)
-
-    for index in range(extra_rules):
-        predicate = EX[f"rule_{index}"]
-        value = get_first_value(graph, subject, predicate)
-
-        if value is None:
-            errors.append(f"rule_{index} is missing.")
+    for rule in contract["rules"]:
+        try:
+            passed = bool(evaluate(rule["rule"], data))
+        except (TypeError, ValueError, ZeroDivisionError, OverflowError) as exc:
+            passed = False
+            errors.append(f"{rule['id']}: evaluation error: {exc}")
             continue
 
-        try:
-            valid = int(value) == index
-        except (TypeError, ValueError):
-            valid = False
+        if not passed:
+            errors.append(rule.get("message", f"Rule '{rule['id']}' failed."))
 
-        if not valid:
-            errors.append(f"rule_{index} must equal {index}.")
-
-    return _result(not errors, errors, collect_errors)
-
-
-def _result(valid, errors, collect_errors):
+    valid = not errors
     if not collect_errors:
         return valid
     return {"valid": valid, "errors": tuple(errors)}
 
 
-def _string_equals(graph, subject, predicate, expected):
-    value = get_first_value(graph, subject, predicate)
-    return value is not None and str(value) == expected
+def _predicate_name(predicate):
+    value = str(predicate)
+    if value.startswith(str(EX)):
+        return value[len(str(EX)):]
+    return value.rsplit("#", 1)[-1].rsplit("/", 1)[-1]
 
 
-def _numeric_check(graph, subject, predicate, condition):
-    value = get_first_value(graph, subject, predicate)
+def _rdf_value_to_python(value):
     if value is None:
-        return False
+        return None
     try:
-        return bool(condition(float(value)))
+        if value.datatype:
+            datatype = str(value.datatype)
+            if datatype.endswith("#integer") or datatype.endswith("#int"):
+                return int(value)
+            if datatype.endswith("#decimal") or datatype.endswith("#double") or datatype.endswith("#float"):
+                return float(value)
+            if datatype.endswith("#boolean"):
+                return str(value).lower() == "true"
     except (TypeError, ValueError):
-        return False
+        pass
+    return str(value)

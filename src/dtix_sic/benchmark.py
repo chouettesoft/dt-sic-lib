@@ -7,6 +7,7 @@ import time
 from .payload import build_payload
 from .rdf import parse_jsonld
 from .validator import validate_sic
+from .contract import load_contract
 
 
 def summarize_samples(samples_ms):
@@ -58,15 +59,24 @@ def run_contract_complexity_experiment(extra_rules, warmup_iterations=100,
     _validate_iterations(warmup_iterations, measured_iterations)
     payload = build_payload(5000, extra_rules=extra_rules)
     graph = parse_jsonld(payload)
+    contract = load_contract()
+    contract["rules"].extend(
+        {
+            "id": f"rule_{index}",
+            "message": f"rule_{index} must equal {index}.",
+            "rule": {"==": [{"var": f"rule_{index}"}, index]},
+        }
+        for index in range(extra_rules)
+    )
 
     for _ in range(warmup_iterations):
-        assert validate_sic(graph, extra_rules), "Warm-up graph did not satisfy the SIC."
+        assert validate_sic(graph, contract), "Warm-up graph did not satisfy the SIC."
 
     samples_ms = []
 
     for _ in range(measured_iterations):
         start_ns = time.perf_counter_ns()
-        assert validate_sic(graph, extra_rules), "Measured graph did not satisfy the SIC."
+        assert validate_sic(graph, contract), "Measured graph did not satisfy the SIC."
         samples_ms.append((time.perf_counter_ns() - start_ns) / 1_000_000)
 
     return {

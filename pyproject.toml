@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dtix-sic"
-version = "0.2.0"
+version = "0.3.0"
 description = "Functional DTIX-A Semantic Information Contract validation library"
 requires-python = ">=3.9"
 dependencies = ["rdflib>=7.0"]
@@ -14,3 +14,6 @@ dev = ["pytest>=8.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+dtix_sic = ["contracts/*.json"]
