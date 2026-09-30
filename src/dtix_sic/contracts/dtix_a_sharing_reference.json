@@ -1,0 +1,47 @@
+{
+  "id": "dtix-a-sharing-reference",
+  "version": "1.0.0",
+  "combining": "deny-overrides",
+  "rules": [
+    {
+      "id": "deny-invalid-contract",
+      "when": {
+        "==": [
+          {"var": "contract.valid"},
+          false
+        ]
+      },
+      "effect": "DENY",
+      "obligations": [
+        {"type": "audit", "event": "invalid-contract-access"}
+      ]
+    },
+    {
+      "id": "deny-restricted-external-sharing",
+      "when": {
+        "and": [
+          {"==": [{"var": "request.action"}, "share"]},
+          {"==": [{"var": "request.purpose"}, "external_research"]},
+          {"==": [{"var": "payload.classification"}, "restricted"]}
+        ]
+      },
+      "effect": "DENY",
+      "obligations": [
+        {"type": "audit", "event": "restricted-external-sharing"}
+      ]
+    },
+    {
+      "id": "allow-valid-sharing",
+      "when": {
+        "and": [
+          {"==": [{"var": "contract.valid"}, true]},
+          {"==": [{"var": "request.action"}, "share"]}
+        ]
+      },
+      "effect": "ALLOW",
+      "obligations": [
+        {"type": "audit", "event": "data-sharing-allowed"}
+      ]
+    }
+  ]
+}

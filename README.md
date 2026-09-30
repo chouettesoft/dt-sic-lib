@@ -47,6 +47,55 @@ print(result["errors"])
 pytest
 ```
 
+The test suite prints per-test wall-clock timings and a total measured test
+runtime in the pytest terminal summary. The timing is intended for regression
+visibility, not as a substitute for the dedicated benchmark module.
+
+## v0.4.0: deterministic policy engine
+
+The library now separates **contract validation** from **policy decisions**.
+Contracts answer whether a payload satisfies its SIC rules; policies answer
+what may be done with that payload in a supplied request/context.
+
+Policies are JSON documents with:
+
+- `id` and `version` for provenance;
+- `rules[]` containing JSON Logic `when` expressions;
+- `ALLOW` or `DENY` effects;
+- `deny-overrides` or `first-applicable` combining;
+- optional typed obligations such as audit requirements.
+
+The canonical policy context is: `payload`, `contract`, `subject`, `resource`,
+`request`, and `environment`. Evaluation is deterministic and returns a
+provenance-rich decision:
+
+```python
+from dtix_sic import evaluate_policy, load_policy
+
+policy = load_policy()
+result = evaluate_policy(policy, {
+    "payload": {"classification": "normal"},
+    "contract": {"valid": True, "errors": ()},
+    "subject": {"roles": ["researcher"]},
+    "resource": {},
+    "request": {"action": "share", "purpose": "research"},
+    "environment": {},
+})
+
+assert result["decision"] in {
+    "ALLOW", "DENY", "NOT_APPLICABLE", "INDETERMINATE"
+}
+```
+
+For the integrated flow, `authorize_sic()` validates the RDF payload with the
+selected contract, builds the canonical policy context, and evaluates the
+policy in one call. The bundled reference policy is
+`contracts/dtix_a_sharing_reference.json`.
+
+## v0.3.1: validation hardening and test timings
+
+The validator now rejects ambiguous graphs containing multiple `dtix:Payload` subjects. Contract validation also rejects duplicate rule IDs, unknown JSON Logic operators, and invalid operator arity before evaluation.
+
 ## v0.3.0: JSON Logic contracts
 
 The validator no longer contains the seven DTIX-A rules in Python. They are stored in:

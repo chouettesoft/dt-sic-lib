@@ -3,13 +3,16 @@
 from rdflib import Literal, RDF
 
 from .context import EX
-from .contract import load_contract
+from .contract import load_contract, validate_contract
 from .logic import evaluate
 
 
 def get_payload_subject(graph):
-    """Return the first subject typed as dtix:Payload, or None."""
-    return next(graph.subjects(RDF.type, EX.Payload), None)
+    """Return the unique dtix:Payload subject, or None when there is none."""
+    subjects = list(graph.subjects(RDF.type, EX.Payload))
+    if len(subjects) > 1:
+        raise ValueError("Graph contains multiple dtix:Payload subjects.")
+    return subjects[0] if subjects else None
 
 
 def get_first_value(graph, subject, predicate):
@@ -42,11 +45,19 @@ def validate_sic(graph, contract=None, collect_errors=False):
 
     Returns bool by default. With ``collect_errors=True`` it returns a plain
     dictionary containing ``valid`` and a tuple of rule error messages.
+    Structural contract errors and ambiguous payload graphs raise ``ValueError``.
     """
     if contract is None or isinstance(contract, (str, bytes)):
         contract = load_contract(contract)
+    else:
+        validate_contract(contract)
 
-    subject = get_payload_subject(graph)
+    try:
+        subject = get_payload_subject(graph)
+    except ValueError as exc:
+        errors = (str(exc),)
+        return {"valid": False, "errors": errors} if collect_errors else False
+
     if subject is None:
         errors = ("No dtix:Payload subject exists.",)
         return {"valid": False, "errors": errors} if collect_errors else False
