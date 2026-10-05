@@ -1,17 +1,24 @@
 # DTIX-A SIC Python Library
 
-Functional, non-OOP Python library for DTIX-A Semantic Information Contract
-validation and benchmarking.
+Functional DTIX-A Semantic Information Contract validation using **CEL** for
+contract expressions and **Casbin** for policy decisions.
 
-## Design
+## Architecture
 
-There are **no user-defined classes and no dataclasses** in the package.
-The API uses functions, dictionaries, tuples, and RDFLib's external `Graph`
-representation.
+```text
+JSON-LD -> RDFLib -> SIC contract -> CEL -> policy context -> Casbin -> decision
+```
+
+CEL and Casbin are embedded Python dependencies. CEL evaluates the contract
+expressions; Casbin evaluates authorization policies using a bundled model and
+policy file. This keeps the policy decision local.
+
+Casbin's Python implementation is `pycasbin`. Casbin's model defines the
+request, policy, effect, and matcher semantics, while the policy CSV contains
+the concrete authorization rules. See the Casbin documentation for the model
+and enforcement APIs.
 
 ## Installation
-
-On PEP 668 protected Linux systems:
 
 ```bash
 python3 -m venv .venv
@@ -20,119 +27,157 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-## Basic use
+For Python 3.9, the project pins `cel-python` to 0.4.0 and the compatible
+`google-re2` wheel release. Casbin 2.8.0 is pure Python and supports Python 3.9.
+
+## Contract validation
 
 ```python
 from dtix_sic import build_payload, parse_jsonld, validate_sic
 
-payload = build_payload(10_000)
-graph = parse_jsonld(payload)
-
-if validate_sic(graph):
-    print("SIC valid")
+graph = parse_jsonld(build_payload(10_000))
+assert validate_sic(graph)
 ```
 
-## Detailed validation
-
-```python
-result = validate_sic(graph, collect_errors=True)
-
-print(result["valid"])
-print(result["errors"])
-```
-
-## Tests
-
-```bash
-pytest
-```
-
-The test suite prints per-test wall-clock timings and a total measured test
-runtime in the pytest terminal summary. The timing is intended for regression
-visibility, not as a substitute for the dedicated benchmark module.
-
-## v0.4.0: deterministic policy engine
-
-The library now separates **contract validation** from **policy decisions**.
-Contracts answer whether a payload satisfies its SIC rules; policies answer
-what may be done with that payload in a supplied request/context.
-
-Policies are JSON documents with:
-
-- `id` and `version` for provenance;
-- `rules[]` containing JSON Logic `when` expressions;
-- `ALLOW` or `DENY` effects;
-- `deny-overrides` or `first-applicable` combining;
-- optional typed obligations such as audit requirements.
-
-The canonical policy context is: `payload`, `contract`, `subject`, `resource`,
-`request`, and `environment`. Evaluation is deterministic and returns a
-provenance-rich decision:
-
-```python
-from dtix_sic import evaluate_policy, load_policy
-
-policy = load_policy()
-result = evaluate_policy(policy, {
-    "payload": {"classification": "normal"},
-    "contract": {"valid": True, "errors": ()},
-    "subject": {"roles": ["researcher"]},
-    "resource": {},
-    "request": {"action": "share", "purpose": "research"},
-    "environment": {},
-})
-
-assert result["decision"] in {
-    "ALLOW", "DENY", "NOT_APPLICABLE", "INDETERMINATE"
-}
-```
-
-For the integrated flow, `authorize_sic()` validates the RDF payload with the
-selected contract, builds the canonical policy context, and evaluates the
-policy in one call. The bundled reference policy is
-`contracts/dtix_a_sharing_reference.json`.
-
-## v0.3.1: validation hardening and test timings
-
-The validator now rejects ambiguous graphs containing multiple `dtix:Payload` subjects. Contract validation also rejects duplicate rule IDs, unknown JSON Logic operators, and invalid operator arity before evaluation.
-
-## v0.3.0: JSON Logic contracts
-
-The validator no longer contains the seven DTIX-A rules in Python. They are stored in:
-
-`src/dtix_sic/contracts/dtix_a_reference.json`
-
-The contract uses JSON Logic expressions, for example:
+Contract rules use CEL strings:
 
 ```json
 {
   "id": "confidence_minimum",
   "message": "confidence must be at least 0.80.",
-  "rule": {
-    ">=": [
-      {"var": "confidence"},
-      0.8
-    ]
-  }
+  "expression": "confidence >= 0.8"
 }
 ```
 
-Use the bundled contract automatically:
+The bundled contract is `src/dtix_sic/contracts/dtix_a_reference.json`.
 
-```python
-from dtix_sic import parse_jsonld, validate_sic
+## Casbin policy engine
 
-graph = parse_jsonld(payload)
-assert validate_sic(graph)
+The default Casbin model is:
+
+`src/dtix_sic/policies/dtix_a_model.conf`
+
+and the bundled policy is:
+
+`src/dtix_sic/policies/dtix_a_policy.csv`
+
+The model uses:
+
+- subject roles;
+- resource type/classification;
+- requested action;
+- allow/deny effects;
+- deny-overrides semantics.
+
+For example:
+
+```text
+p, 1, researcher, restricted, share, deny
+p, 10, researcher, telemetry, share, allow
 ```
 
-Or load a different JSON contract:
+A restricted telemetry resource therefore matches both rules, and Casbin's
+policy effect denies the request.
+
+Authorize a payload with:
 
 ```python
-from dtix_sic import load_contract, validate_sic
+from dtix_sic import build_payload, parse_jsonld, authorize_sic
 
-contract = load_contract("contracts/my_contract.json")
-result = validate_sic(graph, contract, collect_errors=True)
+graph = parse_jsonld(build_payload(10_000))
+
+decision = authorize_sic(
+    graph,
+    request={"action": "share", "purpose": "research"},
+    subject={"roles": ["researcher"]},
+    resource={"type": "telemetry", "classification": "public"},
+)
+
+print(decision["decision"])
 ```
 
-No Python `eval()` is used. The library contains a small deterministic JSON Logic evaluator and currently supports `var`, `if`, `and`, `or`, `!`, `!!`, comparisons, `in`, `cat`, arithmetic, `min`, `max`, `substr`, `match`, and `merge`.
+The result has a stable shape:
+
+```json
+{
+  "decision": "ALLOW",
+  "matched_rules": [],
+  "casbin": {
+    "model": ".../dtix_a_model.conf",
+    "policy": ".../dtix_a_policy.csv"
+  },
+  "context": {}
+}
+```
+
+`matched_rules` contains the Casbin policy lines returned by `enforce_ex` when
+Casbin exposes them. `DENY` is returned when no applicable allow exists or a
+deny rule overrides an allow rule.
+
+### Custom Casbin policies
+
+Pass a configuration dictionary to `authorize_sic()`:
+
+```python
+result = authorize_sic(
+    graph,
+    policy={
+        "model_path": "/etc/myapp/model.conf",
+        "policy_path": "/etc/myapp/policy.csv",
+    },
+    subject={"roles": ["researcher"]},
+    resource={"type": "telemetry"},
+    request={"action": "share"},
+)
+```
+
+The model and policy are intentionally separate. Casbin can therefore evolve
+from the bundled CSV adapter to another supported persistence adapter without
+changing the SIC contract layer.
+
+## Policy context
+
+The canonical context remains:
+
+```json
+{
+  "payload": {},
+  "contract": {},
+  "subject": {},
+  "resource": {},
+  "request": {},
+  "environment": {}
+}
+```
+
+The default Casbin adapter maps this context to the Casbin request as:
+
+```text
+subject -> r.sub
+resource -> r.obj
+action   -> r.act
+```
+
+The built-in matcher provides two controlled functions:
+
+- `has_role(subject, role)`
+- `resource_matches(resource, policy_object)`
+
+No arbitrary Python expression or `eval()` is used for authorization.
+
+## Tests and timings
+
+```bash
+pytest
+```
+
+The test suite prints per-test wall-clock timings, total measured runtime, and
+the slowest test. The benchmark module remains available for parsing/validation
+performance experiments.
+
+## Security boundary
+
+Casbin is evaluated locally, so the application controls the model and policy
+files. Treat custom policy/model paths as trusted configuration. Do not load
+untrusted Casbin model files or policy files. CEL remains the expression engine
+for contract validation and is independently validated before execution.

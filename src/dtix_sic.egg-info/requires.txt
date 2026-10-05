@@ -1,4 +1,7 @@
 rdflib>=7.0
+cel-python==0.4.0
+google-re2==1.1.20240702
+pycasbin==2.8.0
 
 [dev]
 pytest>=8.0

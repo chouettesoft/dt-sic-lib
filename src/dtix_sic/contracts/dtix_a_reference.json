@@ -1,42 +1,41 @@
 {
   "contract": "DTIX-A-SIC",
-  "version": "1.0",
-  "description": "Reference DTIX-A Semantic Information Contract rules.",
+  "version": "1.0.0",
   "rules": [
     {
       "id": "asset_id_required",
-      "message": "asset_id must exist.",
-      "rule": {"!!": [{"var": "asset_id"}]}
+      "message": "asset_id is required.",
+      "expression": "asset_id != ''"
     },
     {
       "id": "information_type_computed",
-      "message": "information_type must be \"computed\".",
-      "rule": {"==": [{"var": "information_type"}, "computed"]}
+      "message": "information_type must be computed.",
+      "expression": "information_type == 'computed'"
     },
     {
-      "id": "rul_hours_positive",
-      "message": "rul_hours must be greater than zero.",
-      "rule": {">": [{"var": "rul_hours"}, 0]}
+      "id": "rul_positive",
+      "message": "rul_hours must be positive.",
+      "expression": "rul_hours > 0"
     },
     {
       "id": "confidence_minimum",
       "message": "confidence must be at least 0.80.",
-      "rule": {">=": [{"var": "confidence"}, 0.8]}
+      "expression": "confidence >= 0.8"
     },
     {
       "id": "model_id_required",
-      "message": "model_id must exist.",
-      "rule": {"!!": [{"var": "model_id"}]}
+      "message": "model_id is required.",
+      "expression": "model_id != ''"
     },
     {
       "id": "model_version_required",
-      "message": "model_version must exist.",
-      "rule": {"!!": [{"var": "model_version"}]}
+      "message": "model_version is required.",
+      "expression": "model_version != ''"
     },
     {
-      "id": "latency_limit",
-      "message": "latency_ms must not exceed 50.",
-      "rule": {"<=": [{"var": "latency_ms"}, 50]}
+      "id": "latency_maximum",
+      "message": "latency_ms must be at most 50.",
+      "expression": "latency_ms <= 50"
     }
   ]
 }

@@ -2,9 +2,10 @@ README.md
 pyproject.toml
 src/dtix_sic/__init__.py
 src/dtix_sic/benchmark.py
+src/dtix_sic/casbin_engine.py
+src/dtix_sic/cel.py
 src/dtix_sic/context.py
 src/dtix_sic/contract.py
-src/dtix_sic/logic.py
 src/dtix_sic/payload.py
 src/dtix_sic/policy.py
 src/dtix_sic/rdf.py
@@ -15,6 +16,9 @@ src/dtix_sic.egg-info/dependency_links.txt
 src/dtix_sic.egg-info/requires.txt
 src/dtix_sic.egg-info/top_level.txt
 src/dtix_sic/contracts/dtix_a_reference.json
-src/dtix_sic/contracts/dtix_a_sharing_reference.json
+src/dtix_sic/policies/dtix_a_model.conf
+src/dtix_sic/policies/dtix_a_policy.csv
+tests/test_casbin.py
+tests/test_casbin_integration.py
 tests/test_library.py
 tests/test_policy.py

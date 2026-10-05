@@ -1,10 +1,10 @@
-"""Functional DTIX-A Semantic Information Contract validation using JSON Logic."""
+"""Functional DTIX-A Semantic Information Contract validation using CEL."""
 
 from rdflib import Literal, RDF
 
 from .context import EX
 from .contract import load_contract, validate_contract
-from .logic import evaluate
+from .cel import evaluate_cel
 
 
 def get_payload_subject(graph):
@@ -23,6 +23,8 @@ def get_first_value(graph, subject, predicate):
 def graph_to_data(graph, subject):
     """Convert the selected RDF subject into JSON-compatible rule input."""
     data = {}
+    if subject is None:
+        return data
     for predicate, value in graph.predicate_objects(subject):
         key = _predicate_name(predicate)
         if key == "type" or not isinstance(value, Literal):
@@ -38,15 +40,7 @@ def graph_to_data(graph, subject):
 
 
 def validate_sic(graph, contract=None, collect_errors=False):
-    """Evaluate all JSON Logic rules from a contract against an RDF payload.
-
-    ``contract`` may be a loaded contract dictionary or a path to a JSON file.
-    When omitted, the project's bundled DTIX-A reference contract is used.
-
-    Returns bool by default. With ``collect_errors=True`` it returns a plain
-    dictionary containing ``valid`` and a tuple of rule error messages.
-    Structural contract errors and ambiguous payload graphs raise ``ValueError``.
-    """
+    """Evaluate all CEL expressions from a contract against an RDF payload."""
     if contract is None or isinstance(contract, (str, bytes)):
         contract = load_contract(contract)
     else:
@@ -67,10 +61,10 @@ def validate_sic(graph, contract=None, collect_errors=False):
 
     for rule in contract["rules"]:
         try:
-            passed = bool(evaluate(rule["rule"], data))
-        except (TypeError, ValueError, ZeroDivisionError, OverflowError) as exc:
+            passed = bool(evaluate_cel(rule["expression"], data))
+        except Exception as exc:
             passed = False
-            errors.append(f"{rule['id']}: evaluation error: {exc}")
+            errors.append(f"{rule['id']}: CEL evaluation error: {exc}")
             continue
 
         if not passed:

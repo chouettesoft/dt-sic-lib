@@ -64,7 +64,7 @@ def run_contract_complexity_experiment(extra_rules, warmup_iterations=100,
         {
             "id": f"rule_{index}",
             "message": f"rule_{index} must equal {index}.",
-            "rule": {"==": [{"var": f"rule_{index}"}, index]},
+            "expression": f"rule_{index} == {index}",
         }
         for index in range(extra_rules)
     )

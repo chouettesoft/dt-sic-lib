@@ -1,0 +1,4 @@
+p, 1, researcher, restricted, share, deny
+p, 1, operator, restricted, share, deny
+p, 10, researcher, telemetry, share, allow
+p, 10, operator, telemetry, share, allow

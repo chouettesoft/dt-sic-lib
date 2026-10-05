@@ -4,19 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dtix-sic"
-version = "0.4.0"
+version = "0.6.1"
 description = "Functional DTIX-A Semantic Information Contract validation library"
 requires-python = ">=3.9"
-dependencies = ["rdflib>=7.0"]
+dependencies = [
+    "rdflib>=7.0",
+    "cel-python==0.4.0",
+    "google-re2==1.1.20240702",
+    "pycasbin==2.8.0",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+markers = ["integration: tests requiring external services"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-dtix_sic = ["contracts/*.json"]
+dtix_sic = ["contracts/*.json", "policies/*.conf", "policies/*.csv"]
