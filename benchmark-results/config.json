@@ -1,0 +1,67 @@
+{
+  "benchmark": "DTIX-A SIC incremental performance (independent workload sweeps)",
+  "hardware": {
+    "operating_system": "Darwin 21.6.0",
+    "architecture": "x86_64",
+    "cpu": {
+      "model": "i386",
+      "physical_cores": 4,
+      "logical_processors": 8,
+      "current_frequency_mhz": 2800.0,
+      "minimum_frequency_mhz": null,
+      "maximum_frequency_mhz": 2800.0,
+      "frequency_note": "Clock speed may vary dynamically; some systems, especially Apple Silicon, do not expose it to user-space tools."
+    },
+    "memory": {
+      "total_bytes": 17179869184,
+      "total_gib": 16.0,
+      "module_speeds": [
+        "1600 MHz",
+        "1600 MHz"
+      ],
+      "speed_note": "RAM speed may be unavailable without elevated permissions or firmware support; missing values are not inferred."
+    },
+    "collection_notes": [
+      "psutil not installed; used operating-system-specific fallbacks"
+    ]
+  },
+  "library_version": "0.6.1 (from uploaded pyproject.toml)",
+  "python": "3.9.6 (default, Oct 18 2022, 12:41:40) \n[Clang 14.0.0 (clang-1400.0.29.202)]",
+  "platform": "Darwin 21.6.0 (x86_64)",
+  "implementation": "CPython",
+  "installed_dependencies": {
+    "dtix-sic": "0.6.1",
+    "rdflib": "7.6.0",
+    "cel-python": "0.4.0",
+    "pycasbin": "2.8.0",
+    "matplotlib": "3.9.4"
+  },
+  "policy_engine": "pycasbin; enabled scenario uses authorize_sic()",
+  "policy_model": "dtix_sic/policies/dtix_a_model.conf",
+  "policy_file": "dtix_sic/policies/dtix_a_policy.csv",
+  "expression_engine": "cel-python; in-process LRU compile cache (maxsize=256)",
+  "input_sizes": [
+    0,
+    10,
+    25,
+    50,
+    100,
+    200,
+    300,
+    400
+  ],
+  "property_sweep_fixed_rule_count": 7,
+  "rule_sweep_fixed_property_count": 400,
+  "warmups": 2,
+  "repeats_per_batch": 7,
+  "batch_count": 3,
+  "timer": "time.perf_counter_ns",
+  "notes": [
+    "Property sweep changes only additional payload properties; contract rule count remains fixed at 7.",
+    "Rule sweep changes only additional CEL rules; payload property count remains fixed.",
+    "Each result row aggregates batches \u00d7 repeats_per_batch timed samples, except cold-cache rows which are single cold measurements.",
+    "Progress is printed to console for every workload point and scenario.",
+    "Minimum-validation is a controlled microbenchmark only, not safe for production inputs."
+  ],
+  "suite_wall_clock_seconds": 1093.5
+}

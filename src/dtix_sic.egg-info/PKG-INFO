@@ -9,3 +9,5 @@ Requires-Dist: google-re2==1.1.20240702
 Requires-Dist: pycasbin==2.8.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
+Provides-Extra: benchmark
+Requires-Dist: matplotlib>=3.7; extra == "benchmark"

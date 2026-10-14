@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+benchmark = ["matplotlib>=3.7"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

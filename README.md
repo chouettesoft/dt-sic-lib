@@ -181,3 +181,34 @@ Casbin is evaluated locally, so the application controls the model and policy
 files. Treat custom policy/model paths as trusted configuration. Do not load
 untrusted Casbin model files or policy files. CEL remains the expression engine
 for contract validation and is independently validated before execution.
+
+## Incremental performance benchmark
+
+Run the four-scenario benchmark after installing the optional plotting dependency:
+
+```bash
+python -m pip install -e ".[dev,benchmark]"
+python examples/incremental_benchmark.py --output benchmark-results
+```
+
+The benchmark scales the number of additional input properties and CEL rules
+(default: 0, 10, 25, 50, 100, 200, 300, 400) and writes `results.csv`,
+`expression_stages.csv`, `results.json`, `config.json`, and PNG charts for:
+
+1. policy disabled vs. enabled;
+2. CEL compilation cache disabled, cold, and warm;
+3. full validation vs. a controlled minimum-validation microbenchmark;
+4. direct processing vs. expression evaluation, including expression-stage timings
+   where the installed CEL runtime exposes them.
+
+`config.json` records the actual Python/platform and library/policy configuration, plus best-effort hardware inventory: CPU model, physical and logical core counts, current/minimum/maximum frequency where exposed, total RAM, and RAM module speed where available. The same hardware section is written separately to `machine_info.json`.
+Hardware detection uses OS-specific facilities and optional `psutil` when installed. Some systems (notably Apple Silicon) do not expose CPU clock frequency, and RAM module speed may require elevated permissions or firmware support; unavailable fields are recorded as `null` rather than guessed. CPU frequency is dynamic and can vary during a run. The minimum-validation path reuses a prebuilt RDF graph, extracted data, and a
+prevalidated contract; it deliberately skips normal validation work and must only
+be used for controlled performance comparison, never as a production security path.
+
+The policy-enabled measurement intentionally uses `authorize_sic()` as implemented,
+so it includes contract validation and Casbin setup/enforcement. This reflects the
+current API's cost, rather than a warmed, reused-enforcer microbenchmark. The CEL
+runtime's `compile()` API may combine parsing and compilation; if its parser is not
+exposed separately, the report labels that stage `parse+compile` instead of
+claiming a false separation.

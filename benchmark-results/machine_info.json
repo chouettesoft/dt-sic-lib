@@ -1,0 +1,25 @@
+{
+  "operating_system": "Darwin 21.6.0",
+  "architecture": "x86_64",
+  "cpu": {
+    "model": "i386",
+    "physical_cores": 4,
+    "logical_processors": 8,
+    "current_frequency_mhz": 2800.0,
+    "minimum_frequency_mhz": null,
+    "maximum_frequency_mhz": 2800.0,
+    "frequency_note": "Clock speed may vary dynamically; some systems, especially Apple Silicon, do not expose it to user-space tools."
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "total_gib": 16.0,
+    "module_speeds": [
+      "1600 MHz",
+      "1600 MHz"
+    ],
+    "speed_note": "RAM speed may be unavailable without elevated permissions or firmware support; missing values are not inferred."
+  },
+  "collection_notes": [
+    "psutil not installed; used operating-system-specific fallbacks"
+  ]
+}
